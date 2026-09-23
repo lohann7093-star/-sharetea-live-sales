@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Sales</title>
+<style>
+body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}
+main{max-width:720px;margin:auto;padding:10px}
+h1{font-size:22px;margin:4px 0 12px}
+input,button{font:inherit;padding:10px;width:100%;margin:4px 0;box-sizing:border-box}
+button{background:#111;color:#fff;border:0}
+#status{font-size:13px;margin:8px 0}
+.hidden{display:none}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{border:1px solid #bbb;padding:9px 6px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+tfoot td{font-weight:bold}
+.small{font-size:12px;color:#555}
+</style>
+</head>
+<body>
+<main>
+<h1>Sharetea Parkmore</h1>
+
+<section id="login">
+<input id="email" type="email" placeholder="Email" autocomplete="username">
+<input id="password" type="password" placeholder="Password" autocomplete="current-password">
+<button id="loginBtn">Sign in</button>
+</section>
+
+<section id="app" class="hidden">
+<input id="date" type="date">
+<button id="loadBtn">Load sales</button>
+<div id="meta" class="small"></div>
+
+<table>
+<thead><tr><th>Hour</th><th>Cups</th><th>Persons</th><th>Amount</th></tr></thead>
+<tbody id="rows"></tbody>
+<tfoot><tr><td>Total</td><td id="tc">0</td><td id="tp">0</td><td id="ta">$0.00</td></tr></tfoot>
+</table>
+
+<button id="logoutBtn">Sign out</button>
+</section>
+
+<div id="status">Ready.</div>
+</main>
+
+<script>
+const URL="https://lkynvhcdlugssiclsqzt.supabase.co";
+const KEY="sb_publishable_Z7xVLZvQwghNdYYHyczf3Q_M__hfiQ1";
+const STORE="sharetea-parkmore";
+
+let access=localStorage.getItem("st_access")||"";
+let refresh=localStorage.getItem("st_refresh")||"";
+
+const $=id=>document.getElementById(id);
+const login=$("login"), app=$("app"), status=$("status"), rows=$("rows");
+
+function today(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+}
+function money(n){return "$"+Number(n||0).toFixed(2)}
+function setStatus(t){status.textContent=t}
+
+async function req(url,opt={},ms=10000){
+  const c=new AbortController(), t=setTimeout(()=>c.abort(),ms);
+  try{return await fetch(url,{...opt,signal:c.signal})}
+  finally{clearTimeout(t)}
+}
+
+async function signIn(){
+  setStatus("Signing in...");
+  const r=await req(URL+"/auth/v1/token?grant_type=password",{
+    method:"POST",
+    headers:{"apikey":KEY,"Content-Type":"application/json"},
+    body:JSON.stringify({email:$("email").value.trim(),password:$("password").value})
+  });
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.msg||j.message||"Login failed");
+  access=j.access_token||"";
+  refresh=j.refresh_token||"";
+  localStorage.setItem("st_access",access);
+  localStorage.setItem("st_refresh",refresh);
+}
+
+async function refreshSession(){
+  if(!refresh)return false;
+  const r=await req(URL+"/auth/v1/token?grant_type=refresh_token",{
+    method:"POST",
+    headers:{"apikey":KEY,"Content-Type":"application/json"},
+    body:JSON.stringify({refresh_token:refresh})
+  });
+  if(!r.ok)return false;
+  const j=await r.json();
+  access=j.access_token||"";
+  refresh=j.refresh_token||refresh;
+  localStorage.setItem("st_access",access);
+  localStorage.setItem("st_refresh",refresh);
+  return !!access;
+}
+
+async function sales(date,retry=true){
+  const q=new URLSearchParams({
+    select:"sale_hour,cups,persons,total",
+    store_id:"eq."+STORE,
+    sale_date:"eq."+date,
+    order:"sale_hour.asc"
+  });
+  const r=await req(URL+"/rest/v1/sales?"+q,{
+    headers:{"apikey":KEY,"Authorization":"Bearer "+access}
+  });
+  if(r.status===401 && retry && await refreshSession())return sales(date,false);
+  const j=await r.json().catch(()=>[]);
+  if(!r.ok)throw new Error(j.message||"Could not load sales");
+  return j;
+}
+
+async function loadSales(){
+  try{
+    setStatus("Loading...");
+    const date=$("date").value||today();
+    const data=await sales(date);
+    const h={};
+    for(const s of data){
+      const k=Number(s.sale_hour);
+      if(!h[k])h[k]={c:0,p:0,a:0};
+      h[k].c+=Number(s.cups||0);
+      h[k].p+=Number(s.persons||0);
+      h[k].a+=Number(s.total||0);
+    }
+    rows.innerHTML="";
+    let tc=0,tp=0,ta=0;
+    Object.keys(h).map(Number).sort((a,b)=>a-b).forEach(k=>{
+      const x=h[k]; tc+=x.c; tp+=x.p; ta+=x.a;
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${String(k).padStart(2,"0")}:00</td><td>${x.c}</td><td>${x.p}</td><td>${money(x.a)}</td>`;
+      rows.appendChild(tr);
+    });
+    $("tc").textContent=tc;
+    $("tp").textContent=tp;
+    $("ta").textContent=money(ta);
+    $("meta").textContent="Updated "+new Date().toLocaleString("en-AU");
+    setStatus(data.length?"Loaded.":"No sales for this date.");
+  }catch(e){
+    setStatus(e.name==="AbortError"?"Timed out. Try again.":(e.message||String(e)));
+  }
+}
+
+$("loginBtn").onclick=async()=>{
+  try{
+    await signIn();
+    login.classList.add("hidden");
+    app.classList.remove("hidden");
+    await loadSales();
+  }catch(e){setStatus(e.message||String(e))}
+};
+
+$("loadBtn").onclick=loadSales;
+$("logoutBtn").onclick=()=>{
+  access="";refresh="";
+  localStorage.removeItem("st_access");
+  localStorage.removeItem("st_refresh");
+  app.classList.add("hidden");
+  login.classList.remove("hidden");
+  setStatus("Signed out.");
+};
+
+$("date").value=today();
+
+(async()=>{
+  if(!access && refresh)try{await refreshSession()}catch(_){}
+  if(access){
+    login.classList.add("hidden");
+    app.classList.remove("hidden");
+    loadSales();
+  }
+})();
+</script>
+</body>
+</html>
