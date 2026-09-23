@@ -3,44 +3,127 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Live Sales</title>
+<title>Sharetea Live Sales</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#111}
-main{max-width:720px;margin:auto;padding:10px}
+:root{
+  --bg:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --line:#d1d5db;
+  --soft:#f3f4f6;
+}
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+main{max-width:760px;margin:auto;padding:10px}
 h1{font-size:22px;margin:4px 0 12px}
-input,button{font:inherit;padding:10px;width:100%;margin:4px 0;box-sizing:border-box}
-button{background:#111;color:#fff;border:0}
-#status{font-size:13px;margin:8px 0}
+input,select,button{
+  font:inherit;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-sizing:border-box;
+}
+select,input{width:100%;background:#fff;color:var(--text)}
+button{background:#111827;color:#fff;border:0;font-weight:700}
+button.secondary{background:var(--soft);color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.5}
 .hidden{display:none}
+#status{font-size:13px;margin:8px 0;color:var(--muted)}
+.login-grid{display:grid;gap:8px}
+.store-row{margin-bottom:8px}
+.store-row label{display:block;font-size:12px;color:var(--muted);margin:0 0 4px}
+.toolbar{
+  display:grid;
+  grid-template-columns:44px 1fr 44px;
+  gap:6px;
+  align-items:center;
+  margin-bottom:8px;
+}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
+.card-label{color:var(--muted);font-size:12px;margin-bottom:5px}
+.card-value{font-size:24px;font-weight:800}
+.small{font-size:12px;color:var(--muted)}
 table{width:100%;border-collapse:collapse;margin-top:8px}
 th,td{border:1px solid #bbb;padding:9px 6px;text-align:right}
 th:first-child,td:first-child{text-align:left}
+thead th{background:var(--soft)}
 tfoot td{font-weight:bold}
-.small{font-size:12px;color:#555}
+.footer-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+@media (min-width:640px){.cards{grid-template-columns:repeat(4,1fr)}}
 </style>
 </head>
 <body>
 <main>
-<h1>Sharetea Parkmore</h1>
+<h1>Sharetea Live Sales</h1>
 
 <section id="login">
-<input id="email" type="email" placeholder="Email" autocomplete="username">
-<input id="password" type="password" placeholder="Password" autocomplete="current-password">
-<button id="loginBtn">Sign in</button>
+  <div class="login-grid">
+    <input id="email" type="email" placeholder="Email" autocomplete="username">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="loginBtn">Sign in</button>
+  </div>
 </section>
 
 <section id="app" class="hidden">
-<input id="date" type="date">
-<button id="loadBtn">Load sales</button>
-<div id="meta" class="small"></div>
 
-<table>
-<thead><tr><th>Hour</th><th>Cups</th><th>Persons</th><th>Amount</th></tr></thead>
-<tbody id="rows"></tbody>
-<tfoot><tr><td>Total</td><td id="tc">0</td><td id="tp">0</td><td id="ta">$0.00</td></tr></tfoot>
-</table>
+  <div class="store-row">
+    <label for="storeSelect">Store</label>
+    <select id="storeSelect">
+      <option value="sharetea-parkmore">Sharetea Parkmore</option>
+      <option value="sharetea-springvale">Sharetea Springvale</option>
+      <option value="sharetea-swanston-st">Sharetea Swanston St</option>
+      <option value="__all__">All Stores</option>
+    </select>
+  </div>
 
-<button id="logoutBtn">Sign out</button>
+  <div class="toolbar">
+    <button id="prevBtn" class="secondary" aria-label="Previous day">‹</button>
+    <input id="date" type="date">
+    <button id="nextBtn" class="secondary" aria-label="Next day">›</button>
+  </div>
+
+  <div class="actions">
+    <button id="refreshBtn">Refresh now</button>
+    <button id="todayBtn" class="secondary">Today</button>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Total Sales</div>
+      <div class="card-value" id="cardSales">$0.00</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Cups Sold</div>
+      <div class="card-value" id="cardCups">0</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Orders / Persons</div>
+      <div class="card-value" id="cardPersons">0</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Average Order</div>
+      <div class="card-value" id="cardAvg">$0.00</div>
+    </div>
+  </div>
+
+  <div id="meta" class="small"></div>
+
+  <table>
+    <thead>
+      <tr><th>Hour</th><th>Cups</th><th>Persons</th><th>Amount</th></tr>
+    </thead>
+    <tbody id="rows"></tbody>
+    <tfoot>
+      <tr><td>Total</td><td id="tc">0</td><td id="tp">0</td><td id="ta">$0.00</td></tr>
+    </tfoot>
+  </table>
+
+  <div class="footer-actions">
+    <button id="refreshBottomBtn">Refresh</button>
+    <button id="logoutBtn" class="secondary">Sign out</button>
+  </div>
 </section>
 
 <div id="status">Ready.</div>
@@ -49,10 +132,12 @@ tfoot td{font-weight:bold}
 <script>
 const URL="https://lkynvhcdlugssiclsqzt.supabase.co";
 const KEY="sb_publishable_Z7xVLZvQwghNdYYHyczf3Q_M__hfiQ1";
-const STORE="sharetea-parkmore";
+const AUTO_REFRESH_MS=30000;
 
 let access=localStorage.getItem("st_access")||"";
 let refresh=localStorage.getItem("st_refresh")||"";
+let refreshTimer=null;
+let currentlyLoading=false;
 
 const $=id=>document.getElementById(id);
 const login=$("login"), app=$("app"), status=$("status"), rows=$("rows");
@@ -61,15 +146,25 @@ function today(){
   const d=new Date(), p=n=>String(n).padStart(2,"0");
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 }
-function money(n){return "$"+Number(n||0).toFixed(2)}
+function money(n){
+  return "$"+Number(n||0).toLocaleString("en-AU",{
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  });
+}
 function setStatus(t){status.textContent=t}
-
+function shiftDate(iso,days){
+  const [y,m,d]=iso.split("-").map(Number);
+  const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()+days);
+  const p=n=>String(n).padStart(2,"0");
+  return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
+}
 async function req(url,opt={},ms=10000){
   const c=new AbortController(), t=setTimeout(()=>c.abort(),ms);
   try{return await fetch(url,{...opt,signal:c.signal})}
   finally{clearTimeout(t)}
 }
-
 async function signIn(){
   setStatus("Signing in...");
   const r=await req(URL+"/auth/v1/token?grant_type=password",{
@@ -84,7 +179,6 @@ async function signIn(){
   localStorage.setItem("st_access",access);
   localStorage.setItem("st_refresh",refresh);
 }
-
 async function refreshSession(){
   if(!refresh)return false;
   const r=await req(URL+"/auth/v1/token?grant_type=refresh_token",{
@@ -100,14 +194,17 @@ async function refreshSession(){
   localStorage.setItem("st_refresh",refresh);
   return !!access;
 }
-
 async function sales(date,retry=true){
-  const q=new URLSearchParams({
-    select:"sale_hour,cups,persons,total",
-    store_id:"eq."+STORE,
+  const selectedStore=$("storeSelect").value;
+  const params={
+    select:"sale_hour,cups,persons,total,store_id",
     sale_date:"eq."+date,
     order:"sale_hour.asc"
-  });
+  };
+  if(selectedStore!=="__all__"){
+    params.store_id="eq."+selectedStore;
+  }
+  const q=new URLSearchParams(params);
   const r=await req(URL+"/rest/v1/sales?"+q,{
     headers:{"apikey":KEY,"Authorization":"Bearer "+access}
   });
@@ -116,8 +213,9 @@ async function sales(date,retry=true){
   if(!r.ok)throw new Error(j.message||"Could not load sales");
   return j;
 }
-
 async function loadSales(){
+  if(currentlyLoading)return;
+  currentlyLoading=true;
   try{
     setStatus("Loading...");
     const date=$("date").value||today();
@@ -133,19 +231,41 @@ async function loadSales(){
     rows.innerHTML="";
     let tc=0,tp=0,ta=0;
     Object.keys(h).map(Number).sort((a,b)=>a-b).forEach(k=>{
-      const x=h[k]; tc+=x.c; tp+=x.p; ta+=x.a;
+      const x=h[k];
+      tc+=x.c; tp+=x.p; ta+=x.a;
       const tr=document.createElement("tr");
-      tr.innerHTML=`<td>${String(k).padStart(2,"0")}:00</td><td>${x.c}</td><td>${x.p}</td><td>${money(x.a)}</td>`;
+      tr.innerHTML=
+        `<td>${String(k).padStart(2,"0")}:00</td>`+
+        `<td>${x.c}</td>`+
+        `<td>${x.p}</td>`+
+        `<td>${money(x.a)}</td>`;
       rows.appendChild(tr);
     });
+    const avg=tp>0?ta/tp:0;
     $("tc").textContent=tc;
     $("tp").textContent=tp;
     $("ta").textContent=money(ta);
-    $("meta").textContent="Updated "+new Date().toLocaleString("en-AU");
-    setStatus(data.length?"Loaded.":"No sales for this date.");
+    $("cardSales").textContent=money(ta);
+    $("cardCups").textContent=tc;
+    $("cardPersons").textContent=tp;
+    $("cardAvg").textContent=money(avg);
+    const storeName=$("storeSelect").options[$("storeSelect").selectedIndex].text;
+    $("meta").textContent=
+      storeName+" • Last updated: "+
+      new Date().toLocaleTimeString("en-AU",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+
+      " • Auto refresh every 30 seconds";
+    setStatus(data.length?"Live sales loaded.":"No sales for this date.");
   }catch(e){
     setStatus(e.name==="AbortError"?"Timed out. Try again.":(e.message||String(e)));
+  }finally{
+    currentlyLoading=false;
   }
+}
+function startAutoRefresh(){
+  if(refreshTimer)clearInterval(refreshTimer);
+  refreshTimer=setInterval(()=>{
+    if(!app.classList.contains("hidden")&&access)loadSales();
+  },AUTO_REFRESH_MS);
 }
 
 $("loginBtn").onclick=async()=>{
@@ -153,15 +273,24 @@ $("loginBtn").onclick=async()=>{
     await signIn();
     login.classList.add("hidden");
     app.classList.remove("hidden");
+    startAutoRefresh();
     await loadSales();
   }catch(e){setStatus(e.message||String(e))}
 };
 
-$("loadBtn").onclick=loadSales;
+$("refreshBtn").onclick=loadSales;
+$("refreshBottomBtn").onclick=loadSales;
+$("todayBtn").onclick=()=>{$("date").value=today();loadSales()};
+$("prevBtn").onclick=()=>{$("date").value=shiftDate($("date").value||today(),-1);loadSales()};
+$("nextBtn").onclick=()=>{$("date").value=shiftDate($("date").value||today(),1);loadSales()};
+$("date").onchange=loadSales;
+$("storeSelect").onchange=loadSales;
+
 $("logoutBtn").onclick=()=>{
   access="";refresh="";
   localStorage.removeItem("st_access");
   localStorage.removeItem("st_refresh");
+  if(refreshTimer)clearInterval(refreshTimer);
   app.classList.add("hidden");
   login.classList.remove("hidden");
   setStatus("Signed out.");
@@ -170,10 +299,11 @@ $("logoutBtn").onclick=()=>{
 $("date").value=today();
 
 (async()=>{
-  if(!access && refresh)try{await refreshSession()}catch(_){}
+  if(!access&&refresh){try{await refreshSession()}catch(_){}}
   if(access){
     login.classList.add("hidden");
     app.classList.remove("hidden");
+    startAutoRefresh();
     loadSales();
   }
 })();
