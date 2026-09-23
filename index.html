@@ -58,7 +58,7 @@ tfoot td{font-weight:bold}
 <main>
 <h1>Sharetea Live Sales</h1>
 
-<section id="login">
+<section id="login" class="hidden">
   <div class="login-grid">
     <input id="email" type="email" placeholder="Email" autocomplete="username">
     <input id="password" type="password" placeholder="Password" autocomplete="current-password">
@@ -126,7 +126,7 @@ tfoot td{font-weight:bold}
   </div>
 </section>
 
-<div id="status">Ready.</div>
+<div id="status">Checking saved login…</div>
 </main>
 
 <script>
@@ -299,12 +299,29 @@ $("logoutBtn").onclick=()=>{
 $("date").value=today();
 
 (async()=>{
-  if(!access&&refresh){try{await refreshSession()}catch(_){}}
-  if(access){
-    login.classList.add("hidden");
-    app.classList.remove("hidden");
-    startAutoRefresh();
-    loadSales();
+  try{
+    if(!access && refresh){
+      await refreshSession();
+    }
+
+    if(access){
+      login.classList.add("hidden");
+      app.classList.remove("hidden");
+      startAutoRefresh();
+      await loadSales();
+    }else{
+      app.classList.add("hidden");
+      login.classList.remove("hidden");
+      setStatus("Sign in once. This device will stay signed in.");
+    }
+  }catch(_){
+    access="";
+    refresh="";
+    localStorage.removeItem("st_access");
+    localStorage.removeItem("st_refresh");
+    app.classList.add("hidden");
+    login.classList.remove("hidden");
+    setStatus("Saved login expired. Please sign in again.");
   }
 })();
 </script>
