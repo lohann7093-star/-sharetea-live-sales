@@ -194,6 +194,65 @@ async function refreshSession(){
   localStorage.setItem("st_refresh",refresh);
   return !!access;
 }
+
+async function getCurrentUserAccess(){
+  const r=await req(
+    URL+"/rest/v1/store_users?select=role,store_id&user_id=eq."+encodeURIComponent(await getCurrentUserId()),
+    {
+      headers:{
+        "apikey":KEY,
+        "Authorization":"Bearer "+access,
+        "Accept":"application/json"
+      }
+    }
+  );
+
+  const data=await r.json().catch(()=>[]);
+
+  if(!r.ok){
+    throw new Error(data.message||"Could not verify dashboard access");
+  }
+
+  return Array.isArray(data) && data.length ? data[0] : null;
+}
+
+async function getCurrentUserId(){
+  const r=await req(URL+"/auth/v1/user",{
+    headers:{
+      "apikey":KEY,
+      "Authorization":"Bearer "+access
+    }
+  });
+
+  const data=await r.json().catch(()=>({}));
+
+  if(r.status===401 && await refreshSession()){
+    return getCurrentUserId();
+  }
+
+  if(!r.ok || !data.id){
+    throw new Error(data.message||"Could not verify signed-in user");
+  }
+
+  return data.id;
+}
+
+async function requireAdminAccess(){
+  const accessInfo=await getCurrentUserAccess();
+
+  if(!accessInfo || accessInfo.role!=="admin"){
+    access="";
+    refresh="";
+    localStorage.removeItem("st_access");
+    localStorage.removeItem("st_refresh");
+    app.classList.add("hidden");
+    login.classList.remove("hidden");
+    throw new Error("This login is for POS cloud sync only. Use the Boss Dashboard account.");
+  }
+
+  return true;
+}
+
 async function sales(date,retry=true){
   const selectedStore=$("storeSelect").value;
   const params={
@@ -271,6 +330,7 @@ function startAutoRefresh(){
 $("loginBtn").onclick=async()=>{
   try{
     await signIn();
+    await requireAdminAccess();
     login.classList.add("hidden");
     app.classList.remove("hidden");
     startAutoRefresh();
@@ -305,6 +365,7 @@ $("date").value=today();
     }
 
     if(access){
+      await requireAdminAccess();
       login.classList.add("hidden");
       app.classList.remove("hidden");
       startAutoRefresh();
